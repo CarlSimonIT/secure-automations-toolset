@@ -3,6 +3,9 @@
 ## Overview
 **secure-automations-toolset** (SAT) incorporates the [Bitwarden CLI](https://bitwarden.com/help/cli/) and the [Bitwarden Secrets Manager CLI](https://bitwarden.com/help/secrets-manager-cli/) to provide a highly secure pre-production environment of Hyper-V hosts and Hyper-V VMs running Windows Server. 
 
+## Demonstration
+_YouTube video goes here_
+
 ## Requirements
 In addition to `secure-automations-toolset.psm1`, the PowerShell script module file, other necessary items for using SAT are:  
 * Internet connectivity. 
@@ -36,3 +39,9 @@ Import-Module .\secure-automations-toolset.psm1
 
 Launch PowerShell 7 as admin. 
 
+### Install Hyper-V
+Launch PowerShell 7 as admin. Save your work & close all open applications aside from PowerShell 7. Installing Hyper-V requires a reboot. 
+
+```powershell
+
+```

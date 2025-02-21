@@ -11,8 +11,9 @@ In addition to `secure-automations-toolset.psm1`, the PowerShell script module f
 * Internet connectivity. 
 * PowerShell 7. 
 * A Bitwarden account with a Bitwarden Vault in the Free tier or above. Paying for Bitwarden is not necessary. 
-* A bare-metal instance of the Windows OS featuring a GUI and with Hyper-V installed.
-* The ability to log into that instance of Windows with a non-admin account + credentials of an account holding membership in the local Administrators group. Logging into Windows as admin will not be necessary. 
+* **_NOPE_** A bare-metal instance of the Windows OS featuring a GUI and with Hyper-V installed. **_NOPE_**
+* The ability to log into that instance of Windows with a non-admin account. 
+* Credentials of an account holding membership in the local Administrators group. Logging into Windows as admin will not be necessary. 
 
 Optional items: 
 * A personal [Microsoft Account](https://account.microsoft.com/account/) (MSA) in the Free tier and configured to be a [passwordless account](https://support.microsoft.com/en-us/windows/go-passwordless-with-your-microsoft-account-585a71d7-2295-4878-aeac-a014984df856). 
@@ -34,6 +35,23 @@ Close Windows PowerShell.
 Visit [vault.bitwarden.com](https://vault.bitwarden.com/#/login) and select **create account**. Sign up for a [free Bitwarden vault](https://bitwarden.com/go/start-free/). Create a Bitwarden Organization with a title to match your lab environment. Accept the free offer for Bitwarden Secrets Manager. 
 
 [![Video-New Bitwarden Account](https://img.youtube.com/vi/i_uSPgdqVO8/0.jpg)](https://www.youtube.com/watch?v=i_uSPgdqVO8)
+
+### Bitwarden Desktop Application
+Download and install the [Bitwarden Desktop Application](https://bitwarden.com/download/). Authenicate with the Bitwarden account created above. 
+
+### Bitwarden Organization
+Return to the [web interface](https://vault.bitwarden.com/#/login). Define a Collection and a Project with matching names. Spin up a machine account with an access token. Open your Bitwarden Password Manager desktop app and create a new **Item**. Set the attributes of the **Item** according to the pattern below. 
+
+| Key | Value |
+| :-- | :-- |
+| Name | Access token name |
+| Username | Machine account name |
+| Password | Access token value |
+|  |  |
+
+Provision your machine account with Read/Write access to your Bitwarden Projects. 
+
+[![Video-Configure Bitwarden Organization](https://img.youtube.com/vi/0_bWK1RH2DE/0.jpg)](https://www.youtube.com/watch?v=0_bWK1RH2DE)
 
 ### Install Dependencies (Slow Option)
 
@@ -80,18 +98,19 @@ Expand-Archive -Path "bws-windows.zip"
 Move-Item -Path ".\bws-windows\bws.exe" -Destination "$env:LocalAppData\Microsoft\WindowsApps"
 ```
 
+> [!NOTE]
+> Periodically visit the [releases](https://github.com/bitwarden/sdk-sm/releases) page for the Bitwarden Secrets Manager CLI to confirm the latest version. 
+
+
 ### Install Dependencies (Fast Option)
 Launch PowerShell 7 in the context of a local admin. Download and import the SAT module into your PowerShell 7 session. 
 ```powershell
-Import-Module -Path .\secure-automations-toolset.psm1 -Verbose
+Import-Module -Path ".\secure-automations-toolset.psm1" -Verbose
 ```
 
-Cmdlet 
-
-### Install Hyper-V
-Launch PowerShell 7 as admin. Save your work & close all open applications aside from PowerShell 7. Installing Hyper-V requires a reboot. 
-
-```powershell
-Set-Location -
+Automatically download & install the four dependencies by running this cmdlet. 
+```
+Unlock-BwCli
 ```
 
+Supply your Bitwarden account username, password, and time-sensitive one-time password when prompted. 

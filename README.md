@@ -11,7 +11,6 @@ In addition to `secure-automations-toolset.psm1`, the PowerShell script module f
 * Internet connectivity. 
 * PowerShell 7. 
 * A Bitwarden account with a Bitwarden Vault in the Free tier or above. Paying for Bitwarden is not necessary. 
-* **_NOPE_** A bare-metal instance of the Windows OS featuring a GUI and with Hyper-V installed. **_NOPE_**
 * The ability to log into that instance of Windows with a non-admin account. 
 * Credentials of an account holding membership in the local Administrators group. Logging into Windows as admin will not be necessary. 
 

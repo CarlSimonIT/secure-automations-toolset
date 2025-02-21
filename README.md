@@ -34,18 +34,4 @@ Close Windows PowerShell.
 ### Bitwarden
 Visit [vault.bitwarden.com](https://vault.bitwarden.com/#/login) and select **create account**. Sign up for a [free Bitwarden vault](https://bitwarden.com/go/start-free/). Create a Bitwarden Organization with a title to match your lab environment. Accept the free offer for Bitwarden Secrets Manager. 
 
-_YouTube video goes here._
-
-### Download & import the SAT module
-```powershell
-Import-Module .\secure-automations-toolset.psm1
-```
-
-Launch PowerShell 7 as admin. 
-
-### Install Hyper-V
-Launch PowerShell 7 as admin. Save your work & close all open applications aside from PowerShell 7. Installing Hyper-V requires a reboot. 
-
-```powershell
-
-```
+[![Video-New Bitwarden Account](https://img.youtube.com/vi/i_uSPgdqVO8/0.jpg)](https://www.youtube.com/watch?v=i_uSPgdqVO8)

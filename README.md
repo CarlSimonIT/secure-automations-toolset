@@ -20,7 +20,7 @@ Optional items:
 
 ## Start
 ### PowerShell 7
-Launch Windows PowerShell in an elevated security context and  execute the line below to download & install PowerShell 7. 
+Launch Windows PowerShell in an elevated security context. Execute the line below to download & install PowerShell 7. 
 ```powershell
 Invoke-Expression "& { $(Invoke-RestMethod https://aka.ms/install-powershell.ps1) } -UseMSI"
 ```
@@ -36,7 +36,7 @@ Visit [vault.bitwarden.com](https://vault.bitwarden.com/#/login) and select **cr
 [![Video-New Bitwarden Account](https://img.youtube.com/vi/i_uSPgdqVO8/0.jpg)](https://www.youtube.com/watch?v=i_uSPgdqVO8)
 
 ### Bitwarden Desktop Application
-Download and install the [Bitwarden Desktop Application](https://bitwarden.com/download/). Authenicate with the Bitwarden account created above. 
+Download and install the [Bitwarden Desktop Application](https://bitwarden.com/download/). Authenticate with the Bitwarden account created above. 
 
 ### Bitwarden Organization
 Return to the [web interface](https://vault.bitwarden.com/#/login). Define a Collection and a Project with matching names. Spin up a machine account with an access token. Open your Bitwarden Password Manager desktop app and create a new **Item**. Set the attributes of the **Item** according to the pattern below. 

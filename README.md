@@ -104,7 +104,7 @@ Move-Item -Path ".\bws-windows\bws.exe" -Destination "$env:LocalAppData\Microsof
 ### Install Dependencies (Fast Option)
 Launch PowerShell 7 in the context of a local admin. Download and import the SAT module into your PowerShell 7 session. 
 ```powershell
-Import-Module -Path ".\secure-automations-toolset.psm1" -Verbose
+Import-Module "secure-automations-toolset.psm1" -Verbose
 ```
 
 Automatically download & install the four dependencies by running this cmdlet. 

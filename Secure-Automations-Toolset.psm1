@@ -449,160 +449,130 @@ function _PrerequisiteConditionsRemote {
 
 function Add-BitwardenPassword {
   [CmdletBinding(
-    ConfirmImpact         = 'Low',
-    SupportsShouldProcess = $True,
-    SupportsPaging        = $true,
-    HelpURI               = "https://github.com/CarlSimonIT/secure-automations-toolset",
-    PositionalBinding     = $true
+    HelpURI = "https://github.com/CarlSimonIT/secure-automations-toolset",
+    PositionalBinding = $true
   )]
   param (
     [Parameter(
-      Position = 0,
       Mandatory = $true,
-      HelpMessage = "SamAccountName of the Active Directory user account",
-      ValueFromPipelineByPropertyName = $False
+      HelpMessage = "SamAccountName of the Active Directory user account."
+    )]
+    [ValidatePattern(
+      '^[^/\\\[\]\:;\|=,\+\*\?\<\>@"]{1,20}$'
     )]
     [Alias('un')]
     [string]$SamAccountName,
 
     [Parameter(
-      Position = 1,
-      HelpMessage = "Domain-level operations require an account with password length of 128 or less. Try adding a replica DC to the domain with a domain admin whose password is 129 characters-operation will fail. Joining a machine to the domain, however, will succeed.",
-      ValueFromPipelineByPropertyName = $False
+      HelpMessage = "Domain-level operations require an account with password length of 128 or less. Try adding a replica DC to the domain with a domain admin whose password is 129 characters-operation will fail. Joining a machine to the domain, however, will succeed."
     )]    
-    [ValidateRange(8,127)]
+    [ValidateRange(8,255)]
     [int32]$len = 127,
 
     [Parameter(
-      Position = 2,
-      HelpMessage = "OPTIONAL: Name of the Item in Bitwarden. Random GUID assigned if left blank.`r`nKnowing the username of the AD account is enough.`r`nUniqueness is only required attribute when titling an Item in Bitwarden Password Manager.",
-      ValueFromPipelineByPropertyName = $False
+      HelpMessage = "`r`n  OPTIONAL: Name of the Item in Bitwarden. Random GUID assigned if left blank.`r`n  Knowing the username of the AD account is enough.`r`n  Uniqueness is only requirement when titling an Item in Bitwarden Password Manager.`r`n"
     )]
     [Alias('item')]
     [string]$BitwardenItemName = (New-Guid).ToString(),
 
     [Parameter(
-      Position = 3,
-      HelpMessage = "NetBIOS name of the Active Directory domain. This is different from the Domain Name System name of the Active Directory domain.`r`n`r`nReference from Microsoft Learn:`r`n  https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/assigning-domain-names",
-      ValueFromPipelineByPropertyName = $False
+      Mandatory = $true,
+      HelpMessage = "NetBIOS name of the Active Directory domain. This is different from the Domain Name System name of the Active Directory domain.`r`n`r`nReference from Microsoft Learn:`r`n  https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/assigning-domain-names`r`n"
+    )]
+    [ValidatePattern(
+      '^(?!-)(?!.*-$)(?!ANONYMOUS$)(?!BATCH$)(?!BUILTIN$)(?!DIALUP$)(?!DOMAIN$)(?!ENTERPRISE$)(?!INTERACTIVE$)(?!INTERNET$)(?!LOCAL$)(?!NETWORK$)(?!NULL$)(?!PROXY$)(?!RESTRICTED$)(?!SELF$)(?!SERVER$)(?!SERVICE$)(?!SYSTEM$)(?!USERS$)(?!WORLD$)[a-zA-Z0-9-]{1,15}$'
     )]
     [Alias('dom')]
-    [string]$NetBiosNameOfActiveDirectoryDomain = $NetBiosNameOfActiveDirectoryDomain,
+    [string]$NetBiosNameOfActiveDirectoryDomain,
 
     [Parameter(
-      Position = 4,
-      HelpMessage = "Name of the organization in Bitwarden",
-      ValueFromPipelineByPropertyName = $False
+      Mandatory = $true,
+      HelpMessage = "Name of the organization in Bitwarden."
     )]
     [Alias('org')]
-    [string]$BitwardenOrganizationName = $BitwardenOrganizationName,
+    [string]$BitwardenOrganizationName,
 
     [Parameter(
-      Position = 5,
-      HelpMessage = "Name of the collection in Bitwarden",
-      ValueFromPipelineByPropertyName = $False
+      Mandatory = $true,
+      HelpMessage = "Name of the collection in Bitwarden."
     )]
     [Alias('col')]
-    [string]$BitwardenPwdManagerCollectionName = $BitwardenPwdManagerCollectionName,
+    [string]$BitwardenPwdManagerCollectionName,
 
     [Parameter(
-      Position = 6,
-      HelpMessage = "Name of the project in Bitwarden Secrets Manager",
-      ValueFromPipelineByPropertyName = $False
+      Mandatory = $true,
+      HelpMessage = "Name of the project in Bitwarden Secrets Manager."
     )]
     [Alias('proj')]
-    [string]$BitwardenSecretsManagerProjectName = $BitwardenSecretsManagerProjectName,
+    [string]$BitwardenSecretsManagerProjectName,
     
     [Parameter(
-      Position = 7,
-      HelpMessage = "A machine account name and an access token value are stored in the 'username' and 'password' sub-properties of the 'login' property of an 'item' in Bitwarden Password Manager. The -AT parameter accepts the NAME of the item object that corresponds to the machine account.",
-      ValueFromPipelineByPropertyName = $False
+      Mandatory = $true,
+      HelpMessage = "A machine account name and an access token value are stored in the 'username' and 'password' sub-properties of the 'login' property of an 'item' in Bitwarden Password Manager. The -AccessTokenName parameter accepts the NAME of the item object that corresponds to the machine account."
     )]
-    [string]$AT = ${Machine Account 01-Access Token}
+    [string]$AccessTokenName 
   )
 
   Set-StrictMode -Version 3
+  
   _PrerequisiteConditions
 
-  <# Hold off on the repeated checks for whether the Bitwarden CLI status is 'unlocked' | Might be what's causing terribly slow operations |
-    $RedirectedErrors = $(${Authentication Status of the Bitwarden CLI} = (bw.exe status | ConvertFrom-Json).status) 2>&1 # Save to variable the status of bw.exe
+  # Save to variable the status of bw.exe
+  $RedirectedErrors = $(
+    ${Authentication Status of the Bitwarden CLI} = bw.exe status | ConvertFrom-Json | Select-Object -Expand 'status'
+  ) 2>&1
 
-    if (${Authentication Status of the Bitwarden CLI} -ne 'unlocked') {_AuthenticateIntoBitwardenPasswordManagerCLI}      # Authenticate if status is anything aside from 'unlocked'
-  #>
+  # Authenticate if status is anything aside from 'unlocked'
+  if (${Authentication Status of the Bitwarden CLI} -ne 'unlocked') {
+    _AuthenticateIntoBitwardenPasswordManagerCLI
+  }
 
-  ($env:BWS_ACCESS_TOKEN) ??= (bw.exe get password ${Machine Account 01-Access Token})
+  # Save access token to environment variable
+  ($env:BWS_ACCESS_TOKEN) ??= (bw.exe get password $AccessTokenName)
 
   # Verify whether the AD account already exists in the 'Active Directory Domain Services' collection of the Bitwarden organization
   
-  # Initialize new variable for referencing Bitwarden Organization ID
-  $_Var_Name = 'BitwardenOrganizationId'
-  try {
-    Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'
-  } 
-  catch {
-    New-Variable -Name $_Var_Name -Value $null
-  }
+  # Initialize new variable for referencing Bitwarden Organization ID and ensure value is $null. 
+  $_Var_Name = 'BitwardenOrganizationId' 
+  try {Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'} catch {New-Variable -Name $_Var_Name -Value $null}
 
-  # Save to variable Bitwarden Organization ID
-  $BitwardenOrganizationId = bw.exe list organizations `
-  | ConvertFrom-Json `
-  | Where-Object {$_.name -eq $BitwardenOrganizationName} `
-  | Select-Object -ExpandProperty 'id'
+  # Save to variable the Bitwarden Organization ID
+  $BitwardenOrganizationId = bw.exe list organizations | ConvertFrom-Json | Where-Object {$_.name -eq $BitwardenOrganizationName} | Select-Object -ExpandProperty 'id'
 
   # exit function if no Bitwarden Organization ID produced
-  if (
-    !($BitwardenOrganizationId)
-  ) {
-    Write-Error -Message "Bitwarden organization name supplied did not resolve to a UUID. Confirm correct spelling of the organization's name in Kerberos Networks' Bitwarden account"
+  if (-not $BitwardenOrganizationId) {
+    Write-Error -Message "`r`n  Bitwarden organization name supplied did not resolve to a UUID.`r`n`r`n  Confirm correct spelling of the organization's name in your Bitwarden account`r`n"
     Pause
     break
   }
 
-  # Initialize new variable for referencing the Collection ID in Bitwarden Password Manager
+  # Initialize new variable for referencing the Collection ID in Bitwarden Password Manager and ensure value is $null. 
   $_Var_Name = 'CollectionId'
-  try {
-    Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'
-  } 
-  catch {
-    New-Variable -Name $_Var_Name -Value $null
-  }
+  try {Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'} catch {New-Variable -Name $_Var_Name -Value $null}
 
-  # Save to variable Collection ID from Bitwarden Password Manager
-  $CollectionId = bw.exe list --organizationid $BitwardenOrganizationId org-collections `
-  | ConvertFrom-Json `
-  | Where-Object {$_.name -eq $BitwardenPwdManagerCollectionName} `
-  | Select-Object -ExpandProperty 'id'
+  # Save to variable the Collection ID from Bitwarden Password Manager
+  $CollectionId = bw.exe list --organizationid $BitwardenOrganizationId org-collections | ConvertFrom-Json | Where-Object {$_.name -eq $BitwardenPwdManagerCollectionName} | Select-Object -ExpandProperty 'id'
 
   # exit function if no collection ID produced
-  if (
-    !($CollectionId)
-  ) {
-    Write-Error -Message "Collection name supplied did not resolve to a UUID. No collection in Bitwarden Password Manager matches that name. Confirm correct spelling of the collection's name in Kerberos Networks' Bitwarden account"
+  if (-not $CollectionId) {
+    Write-Error -Message "`r`n  Collection name supplied did not resolve to a UUID. `r`n  No collection in Bitwarden Password Manager matches that name. `r`n  Confirm correct spelling of the collection's name in your Bitwarden account.`r`n"
     Pause
     break
   }
 
-  if (
-    -not $BitwardenItemName
-  ) {
-    # Initialize new variable for referencing an Item in Bitwarden Password Manager
-    $_Var_Name = 'ItemInBitwarden'
-    try {
-      Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'
-    } 
-    catch {
-      New-Variable -Name $_Var_Name -Value $null
-    }
+  # Only execute the body if a name for the soon-to-be created Item has been defined. 
+  if (-not $BitwardenItemName) {
+    # Initialize new variable for referencing an Item in Bitwarden Password Manager and ensure value is $null. 
+    $_Var_Name = 'ItemInBitwarden'; 
+    try {Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'} catch {New-Variable -Name $_Var_Name -Value $null}
 
-    # Query the Bitwarden Organization for an item of that name. Conceal 'Not Found.' error message emitted from bw.exe by redirecting error stream to variable
+    # Query the Bitwarden Organization for an Item of that name. Conceal 'Not Found.' error message emitted from bw.exe by redirecting error stream to variable
     $RedirectedErrors = $(
       $ItemInBitwarden = bw.exe get --organizationid $BitwardenOrganizationId item $BitwardenItemName
     ) 2>&1
 
     # Destroy variable & exit function if that item is already present
-    if (
-      $ItemInBitwarden
-    ) {
+    if ($ItemInBitwarden) {
       Write-Error -Message "Bitwarden Password Manager reports that an Item already has that name.`r`n  Eliminate the '-BitwardenItemName' parameter-argument pair and reattempt."
       pause
       Remove-Variable 'ItemInBitwarden'
@@ -610,14 +580,9 @@ function Add-BitwardenPassword {
     }
   }
 
-  # Initialize new variable for referencing <domain>\<username>
+  # Initialize new variable for referencing <domain>\<username> and ensure value is $null
   $_Var_Name = 'UsernameInBitwarden'
-  try {
-    Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'
-  } 
-  catch {
-    New-Variable -Name $_Var_Name -Value $null
-  }
+  try {Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'} catch {New-Variable -Name $_Var_Name -Value $null}
 
   # Query the Bitwarden Organization for that <domain>\<username> value. Conceal 'Not Found.' error message emitted from bw.exe by redirecting error stream to variable
   $RedirectedErrors = $(
@@ -625,25 +590,25 @@ function Add-BitwardenPassword {
   ) 2>&1
 
   # exit function if that username is already present
-  if (
-    $UsernameInBitwarden
-  ) {
-    Write-Warning -Message "Active Directory account with username '$UsernameInBitwarden' is already present. Attempt:`r`n`tConvertTo-SecureString -String `$(Get-BitwardenPassword -un '$SamAccountName') -AsPlainText -Force"
+  if ($UsernameInBitwarden) {
+    Write-Warning -Message "`r`n  Active Directory account with username '$UsernameInBitwarden' is already present. Attempt:`r`n`tConvertTo-SecureString -String `$(Get-BitwardenPassword -un '$SamAccountName') -AsPlainText -Force"
     break
   }
 
-  # Can now CONFIRM that Bitwarden Password Manager does not contain any credentials that match with the parameter-argument pairs supplied to the function
+  # Can now confirm that Bitwarden Password Manager does not contain any credentials that match with the parameter-argument pairs supplied to the function
 
   # Calling the Bitwarden Secrets Manager CLI
   
   # Save to variable Project ID from Bitwarden Secrets Manager
   $BitwardenSecretsManagerProjectId = bws.exe project list --access-token $env:BWS_ACCESS_TOKEN | ConvertFrom-Json | Where-Object {$_.name -eq $BitwardenSecretsManagerProjectName} | Select-Object -ExpandProperty 'id'
 
-  # Use bw.exe to define the secret value (generating non-locally would be ideal) and save to variable the Secret ID from Bitwarden Secrets Manager
+  # Use bws.exe to define the secret value and save to variable the Secret ID from Bitwarden Secrets Manager
   $BitwardenSecretsManagerSecretId = bws.exe secret create --access-token $env:BWS_ACCESS_TOKEN $BitwardenItemName $(_AutoGeneratedSecurePassword $len) $BitwardenSecretsManagerProjectId | ConvertFrom-Json | Select-Object -ExpandProperty 'id'
 
+  # ASPIRATION: Generating the secret value in the Bitwarden cloud would be ideal. The local machine should have knowledge of the secret after a query to Bitwarden and only after a query to Bitwarden. 
+
   # Save to separate variables the properties of the object that will eventually be used to define a new Item in Bitwarden Password Manager
-  $EscapedUsername = "$NetBiosNameOfActiveDirectoryDomain\$SamAccountName" -replace '\\','\\'
+  $EscapedUsername          = "$NetBiosNameOfActiveDirectoryDomain\$SamAccountName" -replace '\\','\\'
   ${bw item-name}           = '.name="%Bw_Item_Name%"' -replace '%Bw_Item_Name%',$BitwardenItemName
   ${bw item-login.username} = '.login.username="%Bw_Item_Login_Username%"' -replace '%Bw_Item_Login_Username%',$EscapedUsername
   ${bw item-login.password} = '.login.password="%Bw_Item_Login_Password%"' -replace '%Bw_Item_Login_Password%',$BitwardenSecretsManagerSecretId
@@ -653,150 +618,122 @@ function Add-BitwardenPassword {
 
   # Write into Bitwarden Password Manager (1) <dom>\<un> > 'username' sub-property, and (2) UUID of secret > 'password' sub-property. 
   bw.exe get template item | jq-windows-amd64.exe ${bw item-name} | jq-windows-amd64.exe ${bw item-login.username} | jq-windows-amd64.exe ${bw item-login.password} | jq-windows-amd64.exe ${bw item-organizationId} | jq-windows-amd64.exe ${bw item-notes} | jq-windows-amd64.exe ${bw item-collectionId} | bw.exe encode | bw.exe create item > $null
-
-  # Force a sync and exit
-  $RedirectedError = $(
-    bw.exe sync
-  ) 2>&1
 }
 
 function Get-BitwardenPassword {
   [CmdletBinding(
-    ConfirmImpact         = 'Low',
-    SupportsShouldProcess = $True,
-    SupportsPaging        = $true,
-    HelpURI               = "https://github.com/CarlSimonIT/secure-automations-toolset",
-    PositionalBinding     = $true
+    HelpURI = "https://github.com/CarlSimonIT/secure-automations-toolset",
+    PositionalBinding = $true
   )]
   param (
     [Parameter(
-      Position = 0,
       Mandatory = $true,
-      HelpMessage = "SamAccountName of the Active Directory user account",
-      ValueFromPipelineByPropertyName = $False
+      HelpMessage = "SamAccountName of the Active Directory user account"
+    )]
+    [ValidatePattern(
+      '^[^/\\\[\]\:;\|=,\+\*\?\<\>@"]{1,20}$'
     )]
     [Alias('un')]
     [string]$SamAccountName,
 
-    [Parameter(
-      Position = 1,
-      HelpMessage = "OPTIONAL: Name of the Item in Bitwarden.`r`nKnowing the username of the AD account is enough.",
-      ValueFromPipelineByPropertyName = $False
-    )]
-    [Alias('item')]
-    [string]$BitwardenItemName,
+    [switch]$AsSecureString,
 
     [Parameter(
-      Position = 2,
-      HelpMessage = "NetBIOS name of the Active Directory domain. This is different from the Domain Name System name of the Active Directory domain.`r`n`r`nReference from Microsoft Learn:`r`n  https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/assigning-domain-names",
-      ValueFromPipelineByPropertyName = $False
+      Mandatory = $true,
+      HelpMessage = "NetBIOS name of the Active Directory domain. This is different from the Domain Name System name of the Active Directory domain.`r`n`r`nReference from Microsoft Learn:`r`n  https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/assigning-domain-names"
+    )]
+    [ValidatePattern(
+      '^(?!-)(?!.*-$)(?!ANONYMOUS$)(?!BATCH$)(?!BUILTIN$)(?!DIALUP$)(?!DOMAIN$)(?!ENTERPRISE$)(?!INTERACTIVE$)(?!INTERNET$)(?!LOCAL$)(?!NETWORK$)(?!NULL$)(?!PROXY$)(?!RESTRICTED$)(?!SELF$)(?!SERVER$)(?!SERVICE$)(?!SYSTEM$)(?!USERS$)(?!WORLD$)[a-zA-Z0-9-]{1,15}$'
     )]
     [Alias('dom')]
-    [string]$NetBiosNameOfActiveDirectoryDomain = $NetBiosNameOfActiveDirectoryDomain,
+    [string]$NetBiosNameOfActiveDirectoryDomain,
 
     [Parameter(
-      Position = 3,
-      HelpMessage = "Name of the organization in Bitwarden",
-      ValueFromPipelineByPropertyName = $False
+      Mandatory = $true,
+      HelpMessage = "Name of the organization in Bitwarden"
     )]
     [Alias('org')]
-    [string]$BitwardenOrganizationName = $BitwardenOrganizationName,
+    [string]$BitwardenOrganizationName,
 
     [Parameter(
-      Position = 4,
-      HelpMessage = "Name of the collection in Bitwarden",
-      ValueFromPipelineByPropertyName = $False
+      Mandatory = $true,
+      HelpMessage = "Name of the collection in Bitwarden"
     )]
     [Alias('col')]
-    [string]$BitwardenPwdManagerCollectionName = $BitwardenPwdManagerCollectionName,
+    [string]$BitwardenPwdManagerCollectionName,
 
     [Parameter(
-      Position = 5,
-      HelpMessage = "Name of the project in Bitwarden Secrets Manager",
-      ValueFromPipelineByPropertyName = $False
+      Mandatory = $true,
+      HelpMessage = "Name of the project in Bitwarden Secrets Manager"
     )]
     [Alias('proj')]
-    [string]$BitwardenSecretsManagerProjectName = $BitwardenSecretsManagerProjectName,
+    [string]$BitwardenSecretsManagerProjectName,
     
     [Parameter(
-      Position = 6,
-      HelpMessage = "A machine account name and an access token value are stored in the 'username' and 'password' sub-properties of the 'login' property of an 'item' in Bitwarden Password Manager. The -AT parameter accepts the NAME of the item object that corresponds to the machine account.",
-      ValueFromPipelineByPropertyName = $False
+      Mandatory = $true,
+      HelpMessage = "A machine account name and an access token value are stored in the 'username' and 'password' sub-properties of the 'login' property of an 'item' in Bitwarden Password Manager. The -AccessTokenName parameter accepts the NAME of the item object that corresponds to the machine account."
     )]
-    [string]$AT = ${Machine Account 01-Access Token}
+    [string]$AccessTokenName
   )
 
-  <# WTF even is strict mode? |
-    Set-StrictMode -Version 3
-  #>
-  
+  Set-StrictMode -Version 3
+    
   _PrerequisiteConditions
 
-  <# Hold off on the repeated checks for whether the Bitwarden CLI status is 'unlocked' | Might be what's causing terribly slow operations |
-    $RedirectedErrors = $(${Authentication Status of the Bitwarden CLI} = (bw.exe status | ConvertFrom-Json).status) 2>&1 # Save to variable the status of bw.exe
+  # Save to variable the status of bw.exe
+  $RedirectedErrors = $(
+    ${Authentication Status of the Bitwarden CLI} = bw.exe status | ConvertFrom-Json | Select-Object -Expand 'status'
+  ) 2>&1
 
-    if (${Authentication Status of the Bitwarden CLI} -ne 'unlocked') {_AuthenticateIntoBitwardenPasswordManagerCLI}      # Authenticate if status is anything aside from 'unlocked'
-  #>
-
-  ($env:BWS_ACCESS_TOKEN) ??= (bw.exe get password ${Machine Account 01-Access Token})
-  
-  # Initialize new variable for referencing Bitwarden Organization ID
-  $_Var_Name = 'BitwardenOrganizationId' 
-  try {
-    Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'
-  } 
-  catch {
-    New-Variable -Name $_Var_Name -Value $null
+  # Authenticate if status is anything aside from 'unlocked'
+  if (${Authentication Status of the Bitwarden CLI} -ne 'unlocked') {
+    _AuthenticateIntoBitwardenPasswordManagerCLI
   }
 
-  # Save to variable Bitwarden Organization ID
-  $BitwardenOrganizationId = bw.exe list organizations `
-  | ConvertFrom-Json `
-  | Where-Object {$_.name -eq $BitwardenOrganizationName} `
-  | Select-Object -ExpandProperty 'id'
+  # Save access token to environment variable
+  ($env:BWS_ACCESS_TOKEN) ??= (bw.exe get password $AccessTokenName)
+  
+  # Initialize new variable for referencing Bitwarden Organization ID and ensure value is $null. 
+  $_Var_Name = 'BitwardenOrganizationId' 
+  try {Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'} catch {New-Variable -Name $_Var_Name -Value $null}
+
+  # Save to variable the Bitwarden Organization ID
+  $BitwardenOrganizationId = bw.exe list organizations | ConvertFrom-Json | Where-Object {$_.name -eq $BitwardenOrganizationName} | Select-Object -ExpandProperty 'id'
 
   # exit function if no Bitwarden Organization ID produced
-  if (
-    -not $BitwardenOrganizationId
-  ) {
+  if (-not $BitwardenOrganizationId) {
+    Write-Error -Message "`r`n  Bitwarden organization name supplied did not resolve to a UUID.`r`n`r`n  Confirm correct spelling of the organization's name in your Bitwarden account`r`n"
+    Pause
     break
   }
 
-  # Initialize new variable for referencing the Collection ID in Bitwarden Password Manager
+  # Initialize new variable for referencing the Collection ID in Bitwarden Password Manager and ensure value is $null. 
   $_Var_Name = 'CollectionId'
-  try {
-    Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'
-  } 
-  catch {
-    New-Variable -Name $_Var_Name -Value $null
-  }
+  try {Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'} catch {New-Variable -Name $_Var_Name -Value $null}
 
-  # Save to variable Collection ID from Bitwarden Password Manager
-  $CollectionId = bw.exe list --organizationid $BitwardenOrganizationId org-collections `
-  | ConvertFrom-Json `
-  | Where-Object {$_.name -eq $BitwardenPwdManagerCollectionName} `
-  | Select-Object -ExpandProperty 'id'
+  # Save to variable the Collection ID from Bitwarden Password Manager
+  $CollectionId = bw.exe list --organizationid $BitwardenOrganizationId org-collections | ConvertFrom-Json | Where-Object {$_.name -eq $BitwardenPwdManagerCollectionName} | Select-Object -ExpandProperty 'id'
 
   # exit function if no collection ID produced
-  if (
-    -not $CollectionId
-  ) {
+  if (-not $CollectionId) {
+    Write-Error -Message "`r`n  Collection name supplied did not resolve to a UUID. `r`n  No collection in Bitwarden Password Manager matches that name. `r`n  Confirm correct spelling of the collection's name in your Bitwarden account.`r`n"
+    Pause
     break
   }
 
   $BitwardenSecretsManagerSecretId = bw.exe list --collectionid $CollectionId items --search "$NetBIOSnameOfActiveDirectorydomain\$SamAccountName" | ConvertFrom-Json | Select-Object -ExpandProperty 'login' | Where-Object {$_.username -eq "$NetBIOSnameOfActiveDirectorydomain\$SamAccountName"} | Select-Object -ExpandProperty 'password'
 
-  if (
-    -not $BitwardenSecretsManagerSecretId
-  ) {
+  if (-not $BitwardenSecretsManagerSecretId) {
     Write-Error "Bitwarden does not contain an identity with those details or the local Bitwarden Password Manager CLI needs to undergo a synchronization. Execute the line below and reattempt the query:`r`n`tbw.exe sync"
     Pause
     break
   }
 
   #Write-Host -ForegroundColor 'Magenta' -Object "For what reason are we not automatically converting to a secure string?"
-  
-  bws.exe secret get --access-token $env:BWS_ACCESS_TOKEN $BitwardenSecretsManagerSecretId | ConvertFrom-Json | Select-Object -ExpandProperty 'value'
+  switch ($AsSecureString) {
+    $true {ConvertTo-SecureString -String "$(bws.exe secret get --access-token $env:BWS_ACCESS_TOKEN $BitwardenSecretsManagerSecretId | ConvertFrom-Json | Select-Object -ExpandProperty 'value')" -AsPlainText -Force}
+    $false {bws.exe secret get --access-token $env:BWS_ACCESS_TOKEN $BitwardenSecretsManagerSecretId | ConvertFrom-Json | Select-Object -ExpandProperty 'value'}
+  }
 }
 
 Add-Type -TypeDefinition @"
@@ -2903,7 +2840,7 @@ function New-Server2025viaPwshRemoting {
     )]
     [ValidateLength(1,15)]
     [ValidatePattern(
-      '^(?!(\d{1,15}|w11|w11Pro|w11Pro4WS|s25|s25desk|s25std|s25stddt|ANONYMOUS|BATCH|BUILTIN|DIALUP|DOMAIN|ENTERPRISE|INTERACTIVE|INTERNET|LOCAL|NETWORK|NULL|PROXY|RESTRICTED|SELF|SERVER|SERVICE|SYSTEM|USERS|WORLD)$)[A-Za-z0-9][A-Za-z0-9-]{1,13}[A-Za-z0-9]$'
+      '^(?!(\d{1,15}|ANONYMOUS|BATCH|BUILTIN|DIALUP|DOMAIN|ENTERPRISE|INTERACTIVE|INTERNET|LOCAL|NETWORK|NULL|PROXY|RESTRICTED|SELF|SERVER|SERVICE|SYSTEM|USERS|WORLD)$)[A-Za-z0-9][A-Za-z0-9-]{1,13}[A-Za-z0-9]$'
     )]
     [string]
     $Name0fGuestOS = ('WIN-' + ([System.IO.Path]::GetRandomFileName()) -replace '\.','' -join '').ToUpper(),
@@ -3490,178 +3427,114 @@ function New-Server2025viaPwshRemoting {
 
 function Update-BitwardenPassword {
   [CmdletBinding(
-    ConfirmImpact         = 'Low',
-    SupportsShouldProcess = $True,
-    SupportsPaging        = $true,
-    HelpURI               = "https://github.com/CarlSimonIT/secure-automations-toolset",
-    PositionalBinding     = $true
+    HelpURI = "https://github.com/CarlSimonIT/secure-automations-toolset",
+    PositionalBinding = $true
   )]
   param (
     [Parameter(
-      Position = 0,
       Mandatory = $true,
-      HelpMessage = "SamAccountName of the Active Directory user account",
-      ValueFromPipelineByPropertyName = $False
+      HelpMessage = "SamAccountName of the Active Directory user account"
+    )]
+    [ValidatePattern(
+      '^[^/\\\[\]\:;\|=,\+\*\?\<\>@"]{1,20}$'
     )]
     [Alias('un')]
     [string]$SamAccountName,
 
     [Parameter(
-      Position = 1,
-      Mandatory = $true,
-      HelpMessage = "Domain-level operations require an account with password length of 128 or less. Try adding a replica DC to the domain with a domain admin whose password is 129 characters-operation will fail. Joining a machine to the domain, however, will succeed.",
-      ValueFromPipelineByPropertyName = $False
+      HelpMessage = "Domain-level operations require an account with password length of 128 or less. Try adding a replica DC to the domain with a domain admin whose password is 129 characters-operation will fail. Joining a machine to the domain, however, will succeed."
     )]    
-    [ValidateRange(16,256)]
-    [int32]$len,
+    [ValidateRange(8,255)]
+    [int32]$len = 127,
 
     [Parameter(
-      Position = 2,
-      Mandatory = $false,
-      HelpMessage = "OPTIONAL: Name of the Item in Bitwarden. Random GUID assigned if left blank.`r`nKnowing the username of the AD account is enough.`r`nUniqueness is only required attribute when titling an Item in Bitwarden Password Manager.",
-      ValueFromPipelineByPropertyName = $False
+      Mandatory = $true,
+      HelpMessage = "NetBIOS name of the Active Directory domain. This is different from the Domain Name System name of the Active Directory domain.`r`n`r`nReference from Microsoft Learn:`r`n  https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/assigning-domain-names"
     )]
-    [Alias('item')]
-    [string]$BitwardenItemName = (New-Guid).ToString(),
-
-    [Parameter(
-      Position = 3,
-      Mandatory = $false,
-      HelpMessage = "NetBIOS name of the Active Directory domain. This is different from the Domain Name System name of the Active Directory domain.`r`n`r`nReference from Microsoft Learn:`r`n  https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/assigning-domain-names",
-      ValueFromPipelineByPropertyName = $False
+    [ValidatePattern(
+      '^(?!-)(?!.*-$)(?!ANONYMOUS$)(?!BATCH$)(?!BUILTIN$)(?!DIALUP$)(?!DOMAIN$)(?!ENTERPRISE$)(?!INTERACTIVE$)(?!INTERNET$)(?!LOCAL$)(?!NETWORK$)(?!NULL$)(?!PROXY$)(?!RESTRICTED$)(?!SELF$)(?!SERVER$)(?!SERVICE$)(?!SYSTEM$)(?!USERS$)(?!WORLD$)[a-zA-Z0-9-]{1,15}$'
     )]
     [Alias('dom')]
-    [string]$NetBiosNameOfActiveDirectoryDomain = $NetBiosNameOfActiveDirectoryDomain,
+    [string]$NetBiosNameOfActiveDirectoryDomain,
 
     [Parameter(
-      Position = 4,
-      Mandatory = $false,
-      HelpMessage = "Name of the organization in Bitwarden",
-      ValueFromPipelineByPropertyName = $False
+      Mandatory = $true,
+      HelpMessage = "Name of the organization in Bitwarden"
     )]
     [Alias('org')]
-    [string]$BitwardenOrganizationName = $BitwardenOrganizationName,
+    [string]$BitwardenOrganizationName,
 
     [Parameter(
-      Position = 5,
-      Mandatory = $false,
-      HelpMessage = "Name of the collection in Bitwarden",
-      ValueFromPipelineByPropertyName = $False
+      Mandatory = $true,
+      HelpMessage = "Name of the collection in Bitwarden"
     )]
     [Alias('col')]
-    [string]$BitwardenPwdManagerCollectionName = $BitwardenPwdManagerCollectionName,
+    [string]$BitwardenPwdManagerCollectionName,
 
     [Parameter(
-      Position = 6,
-      Mandatory = $false,
-      HelpMessage = "Name of the project in Bitwarden Secrets Manager",
-      ValueFromPipelineByPropertyName = $False
+      Mandatory = $true,
+      HelpMessage = "Name of the project in Bitwarden Secrets Manager"
     )]
     [Alias('proj')]
-    [string]$BitwardenSecretsManagerProjectName = $BitwardenSecretsManagerProjectName,
+    [string]$BitwardenSecretsManagerProjectName,
     
     [Parameter(
-      Position = 7,
-      Mandatory = $false,
-      HelpMessage = "A machine account name and an access token value are stored in the 'username' and 'password' sub-properties of the 'login' property of an 'item' in Bitwarden Password Manager. The -AT parameter accepts the NAME of the item object that corresponds to the machine account.",
-      ValueFromPipelineByPropertyName = $False
+      Mandatory = $true,
+      HelpMessage = "A machine account name and an access token value are stored in the 'username' and 'password' sub-properties of the 'login' property of an 'item' in Bitwarden Password Manager. The -AccessTokenName parameter accepts the NAME of the item object that corresponds to the machine account."
     )]
-    [string]$AT = ${Machine Account 01-Access Token}
+    [string]$AccessTokenName
   )
 
   Set-StrictMode -Version 3
+
   _PrerequisiteConditions
 
-  <# Hold off on the repeated checks for whether the Bitwarden CLI status is 'unlocked' | Might be what's causing terribly slow operations |
-    $RedirectedErrors = $(${Authentication Status of the Bitwarden CLI} = (bw.exe status | ConvertFrom-Json).status) 2>&1 # Save to variable the status of bw.exe
-
-    if (${Authentication Status of the Bitwarden CLI} -ne 'unlocked') {_AuthenticateIntoBitwardenPasswordManagerCLI}      # Authenticate if status is anything aside from 'unlocked'
-  #>
-
-  ($env:BWS_ACCESS_TOKEN) ??= (bw.exe get password ${Machine Account 01-Access Token})
-  
-  # Verify whether the AD account already exists in the 'Active Directory Domain Services' collection of the Bitwarden organization
-  
-  # Initialize new variable for referencing Bitwarden Organization ID
-  $_Var_Name = 'BitwardenOrganizationId'
-  try {
-    Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'
-  } 
-  catch {
-    New-Variable -Name $_Var_Name -Value $null
-  }
-
-  # Save to variable Bitwarden Organization ID
-  $BitwardenOrganizationId = bw.exe list organizations `
-  | ConvertFrom-Json `
-  | Where-Object {$_.name -eq $BitwardenOrganizationName} `
-  | Select-Object -ExpandProperty 'id'
-
-  # exit function if no Bitwarden Organization ID produced
-  if (
-    !($BitwardenOrganizationId)
-  ) {
-    Write-Error -Message "Bitwarden organization name supplied did not resolve to a UUID. Confirm correct spelling of the organization's name in Kerberos Networks' Bitwarden account"
-    Pause
-    break
-  }
-
-  # Initialize new variable for referencing the Collection ID in Bitwarden Password Manager
-  $_Var_Name = 'CollectionId'
-  try {
-    Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'
-  } 
-  catch {
-    New-Variable -Name $_Var_Name -Value $null
-  }
-
-  # Save to variable Collection ID from Bitwarden Password Manager
-  $CollectionId = bw.exe list --organizationid $BitwardenOrganizationId org-collections `
-  | ConvertFrom-Json `
-  | Where-Object {$_.name -eq $BitwardenPwdManagerCollectionName} `
-  | Select-Object -ExpandProperty 'id'
-
-  # exit function if no collection ID produced
-  if (
-    !($CollectionId)
-  ) {
-    Write-Error -Message "Collection name supplied did not resolve to a UUID. No collection in Bitwarden Password Manager matches that name. Confirm correct spelling of the collection's name in Kerberos Networks' Bitwarden account"
-    Pause
-    break
-  }
-
-  # Initialize new variable for referencing an Item in Bitwarden Password Manager
-  $_Var_Name = 'ItemInBitwarden'
-  try {
-    Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'
-  } 
-  catch {
-    New-Variable -Name $_Var_Name -Value $null
-  }
-
-  # Query the Bitwarden Organization for an item of that name. Conceal 'Not Found.' error message emitted from bw.exe by redirecting error stream to variable
+  # Save to variable the status of bw.exe
   $RedirectedErrors = $(
-    $ItemInBitwarden = bw.exe get --organizationid $BitwardenOrganizationId item $BitwardenItemName
+    ${Authentication Status of the Bitwarden CLI} = bw.exe status | ConvertFrom-Json | Select-Object -Expand 'status'
   ) 2>&1
 
-  # Destroy variable & exit function if that item is already present
-  if (
-    $ItemInBitwarden
-  ) {
-    Write-Error -Message "Bitwarden Password Manager reports that an Item already has that name.`r`n  Eliminate the '-BitwardenItemName' parameter-argument pair and reattempt."
-    pause
-    Remove-Variable 'ItemInBitwarden'
+  # Authenticate if status is anything aside from 'unlocked'
+  if (${Authentication Status of the Bitwarden CLI} -ne 'unlocked') {
+    _AuthenticateIntoBitwardenPasswordManagerCLI
+  }
+
+  # Save access token to environment variable
+  ($env:BWS_ACCESS_TOKEN) ??= (bw.exe get password $AccessTokenName)
+
+  # Verify whether the AD account already exists in the 'Active Directory Domain Services' collection of the Bitwarden organization
+  
+  # Initialize new variable for referencing Bitwarden Organization ID and ensure value is $null. 
+  $_Var_Name = 'BitwardenOrganizationId' 
+  try {Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'} catch {New-Variable -Name $_Var_Name -Value $null}
+
+  # Save to variable the Bitwarden Organization ID
+  $BitwardenOrganizationId = bw.exe list organizations | ConvertFrom-Json | Where-Object {$_.name -eq $BitwardenOrganizationName} | Select-Object -ExpandProperty 'id'
+
+  # exit function if no Bitwarden Organization ID produced
+  if (-not $BitwardenOrganizationId) {
+    Write-Error -Message "`r`n  Bitwarden organization name supplied did not resolve to a UUID.`r`n`r`n  Confirm correct spelling of the organization's name in your Bitwarden account`r`n"
+    Pause
     break
   }
 
-  # Initialize new variable for referencing <domain>\<username>
-  $_Var_Name = 'UsernameInBitwarden'
-  try {
-    Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'
-  } 
-  catch {
-    New-Variable -Name $_Var_Name -Value $null
+  # Initialize new variable for referencing the Collection ID in Bitwarden Password Manager and ensure value is $null. 
+  $_Var_Name = 'CollectionId'
+  try {Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'} catch {New-Variable -Name $_Var_Name -Value $null}
+
+  # Save to variable the Collection ID from Bitwarden Password Manager
+  $CollectionId = bw.exe list --organizationid $BitwardenOrganizationId org-collections | ConvertFrom-Json | Where-Object {$_.name -eq $BitwardenPwdManagerCollectionName} | Select-Object -ExpandProperty 'id'
+
+  # exit function if no collection ID produced
+  if (-not $CollectionId) {
+    Write-Error -Message "`r`n  Collection name supplied did not resolve to a UUID. `r`n  No collection in Bitwarden Password Manager matches that name. `r`n  Confirm correct spelling of the collection's name in your Bitwarden account.`r`n"
+    Pause
+    break
   }
+
+  # Initialize new variable for referencing <domain>\<username> and ensure value is $null
+  $_Var_Name = 'UsernameInBitwarden'
+  try {Clear-Variable -Name $_Var_Name -ErrorAction 'Stop'} catch {New-Variable -Name $_Var_Name -Value $null}
 
   # Query the Bitwarden Organization for that <domain>\<username> value. Conceal 'Not Found.' error message emitted from bw.exe by redirecting error stream to variable
   $RedirectedErrors = $(
@@ -3669,27 +3542,28 @@ function Update-BitwardenPassword {
   ) 2>&1
 
   # exit function if that username is not present
-  if (
-    -not $UsernameInBitwarden
-  ) {
-    Write-Warning -Message "Active Directory account with username '$UsernameInBitwarden' is not present in Bitwarden"
+  if (-not $UsernameInBitwarden) {
+    Write-Warning -Message "Active Directory account with username '$SamAccountName' is not present in Bitwarden. Execute the line below and reattempt the query:`r`n`tbw.exe sync"
+    Pause
     break
   }
 
-  # Can now CONFIRM that Bitwarden Password Manager does not contain any credentials that match with the parameter-argument pairs supplied to the function
+  # Can now confirm that Bitwarden Password Manager contains a credential that matches with the parameter-argument pairs supplied to the function
 
   # Calling the Bitwarden Secrets Manager CLI
-  
+
+  # Save to variable Project ID from Bitwarden Secrets Manager
   $BitwardenSecretsManagerSecretId = bw.exe list --collectionid $CollectionId items --search "$NetBIOSnameOfActiveDirectorydomain\$SamAccountName" | ConvertFrom-Json | Select-Object -ExpandProperty 'login' | Where-Object {$_.username -eq "$NetBIOSnameOfActiveDirectorydomain\$SamAccountName"} | Select-Object -ExpandProperty 'password'
-  $newField = '.fields+=[{name:"%Field_Title%",value:"%Field_Value%",type:1}]' -replace '%Field_Title%',(Call-DateVar) -replace '%Field_Value%',$(bws.exe secret get --access-token $env:BWS_ACCESS_TOKEN $BitwardenSecretsManagerSecretId | ConvertFrom-Json | Select-Object -ExpandProperty 'value')
+
+  # Save to variable the properties of the object that will eventually contain the old Secret
+  $newField = '.fields+=[{name:"%Field_Title%",value:"%Field_Value%",type:1}]' -replace '%Field_Title%',(_CallISO8601TimeDateUTC) -replace '%Field_Value%',$(bws.exe secret get --access-token $env:BWS_ACCESS_TOKEN $BitwardenSecretsManagerSecretId | ConvertFrom-Json | Select-Object -ExpandProperty 'value')
+
+  # Save to variable an object representing the Bitwarden Item that corresponds to the Secret that's undergoing a value change. 
   $item = bw.exe list --collectionid $CollectionId items --search "$NetBIOSnameOfActiveDirectorydomain\$SamAccountName" | ConvertFrom-Json
   $item | ConvertTo-Json | jq-windows-amd64.exe $newField | bw.exe encode | bw.exe edit item $item.id > $null  
-  bws.exe secret edit --access-token $env:BWS_ACCESS_TOKEN --value $(_AutoGeneratedSecurePassword $len) $BitwardenSecretsManagerSecretId > $null  
 
-  # Force a sync and exit
-  $RedirectedError = $(
-    bw.exe sync
-  ) 2>&1
+  # Change the value of the Secret
+  bws.exe secret edit --access-token $env:BWS_ACCESS_TOKEN --value $(_AutoGeneratedSecurePassword $len) $BitwardenSecretsManagerSecretId > $null  
 }
 
 function New-Secret { # New application registration Secret via POST call to the Microsoft Graph API |
@@ -7153,6 +7027,10 @@ function _AutoGeneratedSecurePassword {
   }
 }
 
+function _CallISO8601TimeDateUTC {
+  [string](Get-Date -Date $((Get-Date -AsUTC)) -Format "yyyy-MM-ddTHH:mm:ssZ")
+}
+
 function _PrerequisiteC0nditions_DeleteWhenTheTimeIsRight {
   # Use named matches to capture the well-known SID of the user account that owns the pwsh.exe process executing these commands.
   $WhoAmI = whoami.exe /all
@@ -9729,4 +9607,33 @@ function Safeguard-OneDrive {
   Copy-Item -Path "$env:SystemDrive\Users\${explorer.exe Owner}\OneDrive\IT1" -Destination "$dir" -Recurse
   Copy-Item -Path "$env:SystemDrive\Users\${explorer.exe Owner}\OneDrive\knet" -Destination "$dir" -Recurse
 }
+
+
+
+
+
+$NetBiosNameOfActiveDirectoryDomain = 'KNet'
+$BitwardenOrganizationName = "Kerberos Networks"
+$BitwardenPwdManagerCollectionName = "Active Directory Domain Services" 
+$BitwardenSecretsManagerProjectName = "Active Directory Domain Services"
+$AccessTokenName = "AT 9f9ed09b-f9ca-4651-b912-cf4f29453a69"
+
+$RedirectedError = $($global:PSDefaultParameterValues.Add("Add-BitwardenPassword:BitwardenOrganizationName",$BitwardenOrganizationName)) 2>&1
+$RedirectedError = $($global:PSDefaultParameterValues.Add("Add-BitwardenPassword:NetBiosNameOfActiveDirectoryDomain",$NetBiosNameOfActiveDirectoryDomain)) 2>&1
+$RedirectedError = $($global:PSDefaultParameterValues.Add("Add-BitwardenPassword:BitwardenPwdManagerCollectionName",$BitwardenPwdManagerCollectionName)) 2>&1
+$RedirectedError = $($global:PSDefaultParameterValues.Add("Add-BitwardenPassword:BitwardenSecretsManagerProjectName",$BitwardenSecretsManagerProjectName)) 2>&1
+$RedirectedError = $($global:PSDefaultParameterValues.Add("Add-BitwardenPassword:AccessTokenName",$AccessTokenName)) 2>&1
+
+$RedirectedError = $($global:PSDefaultParameterValues.Add("Get-BitwardenPassword:BitwardenOrganizationName",$BitwardenOrganizationName)) 2>&1
+$RedirectedError = $($global:PSDefaultParameterValues.Add("Get-BitwardenPassword:NetBiosNameOfActiveDirectoryDomain",$NetBiosNameOfActiveDirectoryDomain)) 2>&1
+$RedirectedError = $($global:PSDefaultParameterValues.Add("Get-BitwardenPassword:BitwardenPwdManagerCollectionName",$BitwardenPwdManagerCollectionName)) 2>&1
+$RedirectedError = $($global:PSDefaultParameterValues.Add("Get-BitwardenPassword:BitwardenSecretsManagerProjectName",$BitwardenSecretsManagerProjectName)) 2>&1
+$RedirectedError = $($global:PSDefaultParameterValues.Add("Get-BitwardenPassword:AccessTokenName",$AccessTokenName)) 2>&1
+
+$RedirectedError = $($global:PSDefaultParameterValues.Add("Update-BitwardenPassword:BitwardenOrganizationName",$BitwardenOrganizationName)) 2>&1
+$RedirectedError = $($global:PSDefaultParameterValues.Add("Update-BitwardenPassword:NetBiosNameOfActiveDirectoryDomain",$NetBiosNameOfActiveDirectoryDomain)) 2>&1
+$RedirectedError = $($global:PSDefaultParameterValues.Add("Update-BitwardenPassword:BitwardenPwdManagerCollectionName",$BitwardenPwdManagerCollectionName)) 2>&1
+$RedirectedError = $($global:PSDefaultParameterValues.Add("Update-BitwardenPassword:BitwardenSecretsManagerProjectName",$BitwardenSecretsManagerProjectName)) 2>&1
+$RedirectedError = $($global:PSDefaultParameterValues.Add("Update-BitwardenPassword:AccessTokenName",$AccessTokenName)) 2>&1
+
 
